@@ -1,38 +1,26 @@
 name: Deploy to Now
 on: [push]
 
-jobs:
-  filteroutmaster:
-    name: Filter out master branch
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    steps:
-      - name: Filter out master branch
-        uses: actions/bin/filter@master
-        with:
-          args: "branch master"
-
-  publish:
-    name: Publish to prod
-    runs-on: ubuntu-latest
-    needs: [filteroutmaster]
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v1
-      - name: Deploy on Zeit - Prod
-        uses: actions/zeit-now@master
-        env:
-          ZEIT_TOKEN: ${{ secrets.ZEIT_TOKEN }}
-        with:
-          args: --prod
-
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v1
-      - name: Deploy on Zeit
-        uses: actions/zeit-now@master
-        env:
-          ZEIT_TOKEN: ${{ secrets.ZEIT_TOKEN }}
+ - name: Deploy for staging
+      env:
+        BUILD_ID: ${{ github.sha }}
+        ZEIT_TOKEN: ${{ secrets.ZEIT_TOKEN }}
+      run: >
+        now deploy
+        --local-config=./now.json
+        --build-env NODE_ENV=production
+        --build-env BUILD_ID=${BUILD_ID}
+        --env NODE_ENV=production
+        --public
+        --no-clipboard
+        --token ${ZEIT_TOKEN}
+        > ${HOME}/deployment-url.txt
+    - name: Alias with PR number
+      env:
+        ZEIT_TOKEN: ${{ secrets.ZEIT_TOKEN }}
+      run: >
+        now alias
+        --local-config=./now.json
+        --token ${ZEIT_TOKEN}
+        `cat ${HOME}/deployment-url.txt`
+        ${{ github.event.repository.name }}-pr-${{ github.event.number }}.now.sh
